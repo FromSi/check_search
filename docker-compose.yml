@@ -1,0 +1,49 @@
+services:
+  postgres:
+    container_name: postgres_check_search
+    image: postgres:10
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    ports:
+      - 5432:5432
+  redisearch:
+    container_name: redisearch_check_search
+    image: redislabs/redisearch:2.8.8
+    volumes:
+      - redisdata:/data
+    ports:
+      - 6379:6379
+  meilisearch:
+    container_name: meilisearch_check_search
+    image: getmeili/meilisearch:v1.8.2
+    ports:
+      - 7700:7700
+    volumes:
+      - meilidata:/data.ms
+  app:
+    build: .
+    depends_on:
+      - postgres
+      - redisearch
+      - meilisearch
+    environment:
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: postgres
+      REDIS_HOST: redisearch
+      REDIS_PORT: 6379
+      MEILI_HOST: meilisearch
+      MEILI_PORT: 7700
+
+volumes:
+  pgdata:
+    name: pgdata_volume_check_search
+  redisdata:
+    name: redisdata_volume_check_search
+  meilidata:
+    name: meilidata_volume_check_search
