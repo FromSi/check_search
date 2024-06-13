@@ -35,6 +35,15 @@ type T2 struct {
 	T1          T1     `gorm:"constraint:OnUpdate:CASCADE,OnDelete:CASCADE;foreignKey:T1ID;references:ID" json:"-"`
 }
 
+type T2M struct {
+	ID          uint                   `json:"id"`
+	T1          uint                   `json:"t1"`
+	Title       string                 `json:"title"`
+	Description string                 `json:"description"`
+	Data        map[string]interface{} `json:"data"`
+	CreatedAt   string                 `json:"created_at"`
+}
+
 func generateRandomData() string {
 	rand.Seed(time.Now().UnixNano())
 	numKeys := rand.Intn(10) + 1
@@ -97,6 +106,9 @@ func main() {
 	if err != nil {
 		log.Fatalf("failed to connect to Redis: %v", err)
 	}
+
+	rdb.Do(ctx, "FT.DROPINDEX", "idx_t1", "DD")
+	rdb.Do(ctx, "FT.DROPINDEX", "idx_t2", "DD")
 
 	err = rdb.Do(ctx, "FT.CREATE", "idx_t1", "ON", "HASH", "PREFIX", "1", "t1:", "SCHEMA", "title", "TEXT", "SORTABLE", "description", "TEXT", "SORTABLE", "created_at", "NUMERIC", "SORTABLE").Err()
 	if err != nil {
@@ -183,7 +195,26 @@ func main() {
 		if _, err := msIdxT1.AddDocuments([]T1{t1}); err != nil {
 			log.Fatalf("Failed t1 to add documents to Meilisearch: %v", err)
 		}
-		if _, err := msIdxT2.AddDocuments(t2s); err != nil {
+
+		t2ms := make([]T2M, 0)
+
+		for i := 0; i < len(t2s); i++ {
+			var titleMap map[string]interface{}
+			if err := json.Unmarshal([]byte(t2s[i].Data), &titleMap); err != nil {
+				log.Fatalf("Error handling JSON: %v", err)
+			}
+
+			t2ms = append(t2ms, T2M{
+				ID:          t2s[i].ID,
+				Title:       t2s[i].Title,
+				Description: t2s[i].Description,
+				CreatedAt:   t2s[i].CreatedAt,
+				T1:          t1.ID,
+				Data:        titleMap,
+			})
+		}
+
+		if _, err := msIdxT2.AddDocuments(t2ms); err != nil {
 			log.Fatalf("Failed t2s to add documents to Meilisearch: %v", err)
 		}
 	}
@@ -201,7 +232,7 @@ func main() {
 				}
 
 				var t2s []T2
-				for j := 1000; j <= 1; j++ {
+				for j := 1; j <= 1000; j++ {
 					t2 := T2{
 						Title:       faker.Word(),
 						Description: faker.Paragraph(),

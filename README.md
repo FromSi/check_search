@@ -65,6 +65,42 @@ SCHEMA
 FT.SEARCH idx_t1 "dolor"
 ```
 
+```
+# Поиск по полю title
+
+FT.SEARCH idx_t1 "@title:dolor"
+```
+
+```
+# Поиск по полю title с NOT
+
+FT.SEARCH idx_t1 "-nulla"
+```
+
+```
+# Поиск по полю title с OR AND
+
+FT.SEARCH idx_t1 "@title:dolor @description:(ex|et)"
+```
+
+```
+# Поиск по полю created_at с BETWEEN
+
+FT.SEARCH idx_t1 "@created_at:[652692981 938299797]"
+```
+
+```
+# Поиск с пагинацией
+
+FT.SEARCH idx_t1 "@created_at:[652692981 938299797]" SORTBY created_at LIMIT 0 5
+```
+
+```
+# Поиск с агрегацией
+
+FT.AGGREGATE idx_t1 "*" GROUPBY 1 @title REDUCE COUNT 0 AS num_records REDUCE MAX 1 @created_at AS max_created_at REDUCE MIN 1 @created_at AS min_created_at APPLY "timefmt(@max_created_at)" AS max_created_at APPLY "timefmt(@min_created_at)" AS min_created_at
+```
+
 ## Запросы для Meilisearch
 ```
 # Найти по названию
@@ -73,4 +109,65 @@ curl \
   -X POST 'http://localhost:7700/indexes/idx_t1/search' \
   -H 'Content-Type: application/json' \
   --data-binary '{ "q": "dolor" }'
+```
+
+```
+# Поиск по полю title
+
+curl \
+  -X POST 'http://localhost:7700/indexes/idx_t1/search' \
+  -H 'Content-Type: application/json' \
+  --data-binary '{ "filter": "title = dolor" }'
+```
+
+```
+# Поиск по полю title с NOT OR AND
+
+curl \
+  -X POST 'http://localhost:7700/indexes/idx_t1/search' \
+  -H 'Content-Type: application/json' \
+  --data-binary '{ "filter": "title != dolor AND (title = 'ex' OR title = 'et')" }'
+```
+
+```
+# Поиск с гранями
+
+curl \
+  -X PUT 'http://localhost:7700/indexes/idx_t2/settings/filterable-attributes' \
+  -H 'Content-Type: application/json' \
+  --data-binary '[
+    "title"
+  ]'
+  
+curl \
+  -X POST 'http://localhost:7700/indexes/idx_t2/search' \
+  -H 'Content-Type: application/json' \
+  --data-binary '{
+        "q": "ex",
+        "facets": [
+            "title"
+        ]
+    }'
+```
+
+```
+# Мульти-поиск
+
+curl \
+  -X POST 'http://localhost:7700/multi-search' \
+  -H 'Content-Type: application/json' \
+  --data-binary '{
+    "queries": [
+      {
+        "indexUid": "idx_t1",
+        "q": "et",
+        "limit": 3
+      },
+      {
+        "indexUid": "idx_t2",
+        "q": "ex",
+        "limit": 3
+      }
+    ]
+  }'
 ```
