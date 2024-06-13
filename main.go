@@ -98,6 +98,16 @@ func main() {
 		log.Fatalf("failed to connect to Redis: %v", err)
 	}
 
+	err = rdb.Do(ctx, "FT.CREATE", "idx_t1", "ON", "HASH", "PREFIX", "1", "t1:", "SCHEMA", "title", "TEXT", "SORTABLE", "description", "TEXT", "SORTABLE", "created_at", "NUMERIC", "SORTABLE").Err()
+	if err != nil {
+		log.Fatalf("failed create index to Redis: %v", err)
+	}
+
+	err = rdb.Do(ctx, "FT.CREATE", "idx_t2", "ON", "HASH", "PREFIX", "1", "t2:", "SCHEMA", "t1_id", "NUMERIC", "SORTABLE", "title", "TEXT", "SORTABLE", "description", "TEXT", "SORTABLE", "data", "TEXT", "created_at", "NUMERIC", "SORTABLE").Err()
+	if err != nil {
+		log.Fatalf("failed create index to Redis: %v", err)
+	}
+
 	// Подключение к Meilisearch
 	ms := meilisearch.NewClient(meilisearch.ClientConfig{
 		Host:   fmt.Sprintf("http://%s:%s", os.Getenv("MEILI_HOST"), os.Getenv("MEILI_PORT")),
@@ -140,26 +150,29 @@ func main() {
 			log.Fatalf("failed to commit transaction: %v", err)
 		}
 
+		tl := "2006-01-02 15:04:05"
+
 		// Запись данных в Redis
 		t1Key := fmt.Sprintf("t1:%d", t1.ID)
+		t, _ := time.Parse(tl, t1.CreatedAt)
 		t1Data := []interface{}{
-			"id", t1.ID,
 			"title", t1.Title,
 			"description", t1.Description,
-			"created_at", t1.CreatedAt,
+			"created_at", t.Unix(),
 		}
 		pipe := rdb.TxPipeline()
-		pipe.HSet(ctx, t1Key, t1Data)
+		pipe.HSet(ctx, t1Key, t1Data...)
 		for _, t2 := range t2s {
 			t2Key := fmt.Sprintf("t2:%d", t2.ID)
+			t, _ := time.Parse(tl, t2.CreatedAt)
 			t2Data := []interface{}{
-				"id", t2.ID,
-				"t1_id", t2.T1ID,
+				"t1_id", strconv.Itoa(int(t2.T1ID)),
 				"title", t2.Title,
+				"description", t2.Description,
 				"data", t2.Data,
-				"created_at", t2.CreatedAt,
+				"created_at", t.Unix(),
 			}
-			pipe.HSet(ctx, t2Key, t2Data)
+			pipe.HSet(ctx, t2Key, t2Data...)
 		}
 		_, err = pipe.Exec(ctx)
 		if err != nil {
@@ -188,7 +201,7 @@ func main() {
 				}
 
 				var t2s []T2
-				for j := 1; j <= 1000; j++ {
+				for j := 1000; j <= 1; j++ {
 					t2 := T2{
 						Title:       faker.Word(),
 						Description: faker.Paragraph(),

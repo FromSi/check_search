@@ -34,8 +34,6 @@ t2=1_000_000pcs
 * Meilisearch - https://www.meilisearch.com/docs/learn/what_is_meilisearch/sdks
 
 ## Схемы индексов для Redisearch
-Для ввода нужно зайти через `make redisearch`. Для списка имеющихся схем `FT._LIST`
-
 ```
 FT.CREATE idx_t1 
     ON HASH
@@ -44,9 +42,6 @@ SCHEMA
     title TEXT SORTABLE
     description TEXT SORTABLE
     created_at NUMERIC SORTABLE
-    
-# для ввода в redis-cli    
-FT.CREATE idx_t1 ON JSON PREFIX 1 t1: SCHEMA title TEXT SORTABLE description TEXT SORTABLE created_at NUMERIC SORTABLE
 ```
 
 ```
@@ -59,9 +54,6 @@ SCHEMA
     description TEXT SORTABLE
     data TEXT
     created_at NUMERIC SORTABLE
-    
-# для ввода в redis-cli 
-FT.CREATE idx_t2 ON JSON PREFIX 1 t2: SCHEMA t1_id NUMERIC SORTABLE title TEXT SORTABLE description TEXT SORTABLE data TEXT created_at NUMERIC SORTABLE
 ```
 
 ## Запросы для Redisearch
